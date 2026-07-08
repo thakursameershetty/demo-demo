@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unified Meme Studio Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Bebas+Neue&family=Comic+Neue:wght@700&family=Pacifico&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --surface-color: rgba(30, 30, 30, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent-color: #ff3b30;
+            --active-color: #3498db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            overscroll-behavior-y: none;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 10;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            font-size: 20px;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        /* Unified Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 4px;
+            backdrop-filter: blur(10px);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mode-btn.active {
+            background: var(--text-primary);
+            color: var(--bg-color);
+        }
+
+        .save-btn {
+            background: var(--text-primary);
+            color: black;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .save-btn:hover {
+            opacity: 0.8;
+        }
+
+        .save-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: var(--accent-color);
+            color: white;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Stage */
+        .stage {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 70px 20px 140px 20px;
+            position: relative;
+            touch-action: none;
+        }
+
+        .canvas-wrapper {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+            background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 20px 20px;
+            touch-action: none;
+            position: relative;
+        }
+
+        .empty-state {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            color: var(--text-secondary);
+            text-align: center;
+            cursor: pointer;
+            padding: 40px;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+
+        .empty-state:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .recording-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .recording-overlay.visible {
+            display: flex;
+        }
+
+        /* Bottom Toolbar */
+        .bottom-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: var(--surface-color);
+            padding: 10px 20px;
+            border-radius: 30px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            max-width: 90vw;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .bottom-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .bottom-bar.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            min-width: 50px;
+            flex-shrink: 0;
+        }
+
+        .tool-btn i {
+            font-size: 24px;
+        }
+
+        .tool-btn:hover,
+        .tool-btn.active {
+            opacity: 1;
+            color: var(--active-color);
+        }
+
+        .tool-btn.danger:hover {
+            color: #ff453a;
+        }
+
+        /* Popovers & Modals */
+        .popover {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: var(--surface-color);
+            backdrop-filter: blur(15px);
+            padding: 12px;
+            border-radius: 20px;
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 9;
+        }
+
+        .popover.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: transform 0.1s;
+            flex-shrink: 0;
+        }
+
+        .font-btn,
+        .ratio-btn,
+        .align-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Advanced Text Format Popover */
+        .format-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 200px;
+        }
+
+        .format-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .format-row label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .format-row input[type="range"] {
+            flex: 1;
+            accent-color: var(--active-color);
+        }
+
+        .case-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .case-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 30, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 24px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.visible .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .modal-ratios {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-ratio-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-modal {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 12px;
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .template-item {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .template-item:hover {
+            transform: scale(1.05);
+            border-color: #ffffff;
+            position: relative;
+            z-index: 2;
+        }
+
+        input[type="file"],
+        #videoElement {
+            display: none;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+        }
+
+        .video-control {
+            display: none;
+        }
+
+        body.video-mode .video-control {
+            display: flex;
+        }
+
+        body.video-mode #topTemplatesBtn {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="top-bar">
+        <div class="top-controls">
+            <button class="icon-btn" id="topUploadBtn" title="Upload Media"><i class="ph ph-upload-simple"></i></button>
+            <button class="icon-btn" id="topTemplatesBtn" title="Templates"><i class="ph ph-cards"></i></button>
+            <button class="icon-btn video-control" id="playPauseBtn" title="Play/Pause"
+                style="opacity: 0.3; pointer-events: none;"><i class="ph ph-play"></i></button>
+        </div>
+
+        <div class="mode-toggle">
+            <button class="mode-btn active" id="modeImageBtn"><i class="ph ph-image"></i> Image</button>
+            <button class="mode-btn" id="modeVideoBtn"><i class="ph ph-video"></i> Video</button>
+        </div>
+
+        <div class="top-controls">
+            <button class="icon-btn" id="undoBtn" title="Undo" style="opacity: 0.3; pointer-events: none;"><i
+                    class="ph ph-arrow-u-up-left"></i></button>
+            <button id="downloadBtn" class="save-btn">Save <i class="ph ph-download-simple"></i></button>
+        </div>
+    </header>
+
+    <input type="file" id="mediaUpload" accept="image/*">
+    <input type="file" id="stickerUpload" accept="image/*">
+    <video id="videoElement" loop playsinline crossorigin="anonymous"></video>
+
+    <main class="stage" id="stage">
+        <div class="empty-state" id="emptyStateBtn">
+            <i class="ph ph-image" id="emptyStateIcon"></i>
+            <h3 id="emptyStateText">Tap to choose image</h3>
+        </div>
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <div class="recording-overlay" id="recordingIndicator"><i class="ph ph-record"
+                    style="animation: pulse 1s infinite;"></i> RECORDING</div>
+            <canvas id="memeCanvas"></canvas>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="templatesModal">
+        <div class="modal-content">
+            <h3>Popular Templates</h3>
+            <div class="template-grid">
+                <img src="https://i.imgflip.com/30b1gx.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/30b1gx.jpg">
+                <img src="https://i.imgflip.com/1ur9b0.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/1ur9b0.jpg">
+                <img src="https://i.imgflip.com/1g8my4.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/1g8my4.jpg">
+                <img src="https://i.imgflip.com/261o3j.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/261o3j.jpg">
+                <img src="https://i.imgflip.com/1o00in.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/1o00in.jpg">
+                <img src="https://i.imgflip.com/24y43o.jpg" class="template-item"
+                    data-url="https://i.imgflip.com/24y43o.jpg">
+            </div>
+            <button class="close-modal" id="closeTemplatesModal">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="startupModal">
+        <div class="modal-content">
+            <h3>Choose Canvas Size</h3>
+            <div class="modal-ratios">
+                <button class="modal-ratio-btn" data-ratio="original"><i class="ph ph-image-square"></i>
+                    Original</button>
+                <button class="modal-ratio-btn" data-ratio="1:1"><i class="ph ph-square"></i> 1:1 Square</button>
+                <button class="modal-ratio-btn" data-ratio="3:4"><i class="ph ph-rectangle"></i> 3:4 Standard</button>
+                <button class="modal-ratio-btn" data-ratio="4:5"><i class="ph ph-images"></i> 4:5 Portrait</button>
+                <button class="modal-ratio-btn" data-ratio="9:16" style="grid-column: span 2;"><i
+                        class="ph ph-device-mobile"></i> 9:16 Story</button>
+            </div>
+            <button class="close-modal" id="closeStartupModal">Cancel</button>
+        </div>
+    </div>
+
+    <div class="popover" id="colorSwatches">
+        <div class="swatch" style="background: #ffffff;" data-color="#ffffff"></div>
+        <div class="swatch" style="background: #000000;" data-color="#000000"></div>
+        <div class="swatch" style="background: #ff3b30;" data-color="#ff3b30"></div>
+        <div class="swatch" style="background: #ffcc00;" data-color="#ffcc00"></div>
+        <div class="swatch"
+            style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;"
+            title="Custom Color">
+            <i class="ph ph-plus" style="color: white; pointer-events: none; z-index: 2;"></i>
+            <input type="color" id="customColorPicker" value="#ff00ff"
+                style="position: absolute; opacity: 0; width: 200%; height: 200%; cursor: pointer;">
+        </div>
+    </div>
+    <div class="popover" id="fontSwatches">
+        <button class="font-btn" style="font-family: 'Impact', sans-serif;" data-font="Impact">Meme</button>
+        <button class="font-btn" style="font-family: 'Bebas Neue', sans-serif;" data-font="Bebas Neue">Bold</button>
+        <button class="font-btn" style="font-family: 'Comic Neue', cursive;" data-font="Comic Neue">Comic</button>
+    </div>
+
+    <div class="popover" id="formatSwatches">
+        <div class="format-panel">
+            <div class="format-row">
+                <label>Spacing</label>
+                <input type="range" id="letterSpacingSlider" min="-100" max="800" value="0">
+            </div>
+            <div class="format-row">
+                <button class="case-btn" data-case="upper">UPPER</button>
+                <button class="case-btn" data-case="lower">lower</button>
+                <button class="case-btn" data-case="title">Title</button>
+            </div>
+            <div class="format-row">
+                <button class="align-btn" data-align="left" style="flex:1; justify-content:center;"><i
+                        class="ph ph-text-align-left"></i></button>
+                <button class="align-btn" data-align="center" style="flex:1; justify-content:center;"><i
+                        class="ph ph-text-align-center"></i></button>
+                <button class="align-btn" data-align="right" style="flex:1; justify-content:center;"><i
+                        class="ph ph-text-align-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="popover" id="ratioSwatches">
+        <button class="ratio-btn" data-ratio="original">Original</button>
+        <button class="ratio-btn" data-ratio="1:1">1:1</button>
+        <button class="ratio-btn" data-ratio="4:5">4:5</button>
+        <button class="ratio-btn" data-ratio="9:16">9:16</button>
+    </div>
+
+    <footer class="bottom-bar" id="bottomBar">
+        <button class="tool-btn" id="ratioBtn"><i class="ph ph-frame-corners"></i>Ratio</button>
+        <label for="stickerUpload" class="tool-btn" style="margin:0;"><i class="ph ph-sticker"></i>Sticker</label>
+        <button class="tool-btn" id="addTextBtn"><i class="ph ph-text-t"></i>Text</button>
+        <button class="tool-btn" id="fontBtn"><i class="ph ph-text-aa"></i>Font</button>
+        <button class="tool-btn" id="formatBtn"><i class="ph ph-faders"></i>Format</button>
+        <button class="tool-btn" id="drawBtn"><i class="ph ph-scribble-loop"></i>Draw</button>
+        <button class="tool-btn" id="colorBtn"><i class="ph ph-palette"></i>Color</button>
+        <button class="tool-btn danger" id="deleteBtn"><i class="ph ph-trash"></i>Delete</button>
+    </footer>
+
+    <script>
+        const canvas = new fabric.Canvas('memeCanvas', { isDrawingMode: false, preserveObjectStacking: true });
+        const videoElement = document.getElementById('videoElement');
+        let currentMode = 'image';
+        let currentColor = '#ffffff';
+        let originalMediaObj = null;
+        let pendingUploadRatio = 'original';
+        let isVideoRendering = false;
+        let animationFrameId = null;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let canvasHistory = [];
+        let historyIndex = -1;
+        let isHistoryProcessing = false;
+
+        fabric.Object.prototype.set({
+            transparentCorners: false, borderColor: '#ffffff', cornerColor: '#ffffff',
+            cornerStrokeColor: 'rgba(0,0,0,0.5)', cornerSize: 18, cornerStyle: 'circle', padding: 12
+        });
+
+        // --- MODE TOGGLE LOGIC ---
+        document.getElementById('modeImageBtn').addEventListener('click', () => switchMode('image'));
+        document.getElementById('modeVideoBtn').addEventListener('click', () => switchMode('video'));
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeImageBtn').classList.toggle('active', mode === 'image');
+            document.getElementById('modeVideoBtn').classList.toggle('active', mode === 'video');
+            document.body.classList.toggle('video-mode', mode === 'video');
+
+            document.getElementById('emptyStateIcon').className = mode === 'image' ? 'ph ph-image' : 'ph ph-video';
+            document.getElementById('emptyStateText').innerText = `Tap to choose ${mode}`;
+            document.getElementById('mediaUpload').accept = mode === 'image' ? 'image/*' : 'video/mp4,video/webm,video/ogg';
+
+            canvas.clear(); canvas.backgroundColor = '#1e1e1e';
+            canvasHistory = []; historyIndex = -1; updateHistoryUI();
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            videoElement.pause(); isVideoRendering = false;
+
+            document.getElementById('canvasWrapper').style.display = 'none';
+            document.getElementById('emptyStateBtn').style.display = 'flex';
+            document.getElementById('bottomBar').classList.remove('visible');
+            document.getElementById('downloadBtn').innerHTML = mode === 'image' ? 'Save <i class="ph ph-download-simple"></i>' : 'Export <i class="ph ph-record"></i>';
+        }
+
+        // --- RENDER LOOP ---
+        function renderVideoLoop() {
+            if (isVideoRendering) {
+                canvas.renderAll();
+                animationFrameId = fabric.util.requestAnimFrame(renderVideoLoop);
+            }
+        }
+
+        // --- MEDIA UPLOAD FLOW ---
+        const startupModal = document.getElementById('startupModal');
+        document.getElementById('emptyStateBtn').addEventListener('click', () => startupModal.classList.add('visible'));
+        document.getElementById('topUploadBtn').addEventListener('click', () => startupModal.classList.add('visible'));
+        document.getElementById('closeStartupModal').addEventListener('click', () => startupModal.classList.remove('visible'));
+
+        document.querySelectorAll('.modal-ratio-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                pendingUploadRatio = this.getAttribute('data-ratio');
+                startupModal.classList.remove('visible');
+                document.getElementById('mediaUpload').click();
+            });
+        });
+
+        const templatesModal = document.getElementById('templatesModal');
+        document.getElementById('topTemplatesBtn').addEventListener('click', () => templatesModal.classList.add('visible'));
+        document.getElementById('closeTemplatesModal').addEventListener('click', () => templatesModal.classList.remove('visible'));
+
+        document.querySelectorAll('.template-item').forEach(item => {
+            item.addEventListener('click', function () {
+                const url = this.getAttribute('data-url');
+                templatesModal.classList.remove('visible');
+                const img = new Image(); img.crossOrigin = "Anonymous";
+                img.onload = () => { pendingUploadRatio = 'original'; initCanvasWithMedia(img, 'image'); };
+                img.src = url;
+            });
+        });
+
+        document.getElementById('mediaUpload').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (currentMode === 'image') {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const img = new Image(); img.src = event.target.result;
+                    img.onload = () => initCanvasWithMedia(img, 'image');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const fileURL = URL.createObjectURL(file);
+                videoElement.src = fileURL;
+
+                // Ensure video decodes and check duration limit
+                videoElement.addEventListener('canplay', function onVideoReady() {
+                    videoElement.removeEventListener('canplay', onVideoReady);
+
+                    if (videoElement.duration > 31) {
+                        alert("For performance reasons, please select a video under 30 seconds.");
+                        return;
+                    }
+
+                    videoElement.width = videoElement.videoWidth;
+                    videoElement.height = videoElement.videoHeight;
+                    initCanvasWithMedia(videoElement, 'video');
+                }, { once: true });
+            }
+            this.value = '';
+        });
+
+        // Add Stickers (Image over Video/Image)
+        document.getElementById('stickerUpload').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                fabric.Image.fromURL(event.target.result, function (img) {
+                    img.scaleToWidth(canvas.width / 3);
+                    img.set({ left: canvas.width / 2, top: canvas.height / 2, originX: 'center', originY: 'center' });
+                    canvas.add(img); canvas.setActiveObject(img);
+                    if (currentMode === 'image') saveHistory();
+                });
+            };
+            reader.readAsDataURL(file);
+            this.value = '';
+        });
+
+        function initCanvasWithMedia(mediaElement, type) {
+            originalMediaObj = mediaElement;
+            document.getElementById('emptyStateBtn').style.display = 'none';
+            document.getElementById('canvasWrapper').style.display = 'block';
+            document.getElementById('bottomBar').classList.add('visible');
+
+            canvas.clear(); canvas.backgroundColor = '#1e1e1e';
+
+            const maxW = window.innerWidth - 40; const maxH = window.innerHeight - 250;
+            const sourceW = type === 'image' ? mediaElement.width : mediaElement.videoWidth;
+            const sourceH = type === 'image' ? mediaElement.height : mediaElement.videoHeight;
+
+            let scale = Math.min(maxW / sourceW, maxH / sourceH);
+            if (scale > 1) scale = 1;
+
+            // UNLOCKED BACKGROUND: Both Image and Video act as standard objects now!
+            const fabricMedia = new fabric.Image(mediaElement, {
+                originX: 'center', originY: 'center',
+                selectable: true,
+                evented: true
+            });
+
+            setAspectRatio(pendingUploadRatio, sourceW, sourceH, scale, fabricMedia);
+            canvas.add(fabricMedia); canvas.sendToBack(fabricMedia);
+            canvas.setActiveObject(fabricMedia);
+
+            if (type === 'image') {
+                saveHistory();
+            } else {
+                document.getElementById('playPauseBtn').style.opacity = '1';
+                document.getElementById('playPauseBtn').style.pointerEvents = 'auto';
+
+                videoElement.play().then(() => {
+                    isVideoRendering = true; renderVideoLoop();
+                    document.getElementById('playPauseBtn').innerHTML = '<i class="ph ph-pause"></i>';
+                }).catch(e => console.log("Autoplay prevented:", e));
+            }
+        }
+
+        function setAspectRatio(ratio, sourceW, sourceH, scale, fabricObj) {
+            let targetW = sourceW; let targetH = sourceH;
+
+            if (ratio === '1:1') { targetW = 1000; targetH = 1000; }
+            else if (ratio === '3:4') { targetW = 900; targetH = 1200; }
+            else if (ratio === '4:5') { targetW = 800; targetH = 1000; }
+            else if (ratio === '9:16') { targetW = 1080; targetH = 1920; }
+
+            let canvasScale = Math.min((window.innerWidth - 40) / targetW, (window.innerHeight - 250) / targetH);
+            if (canvasScale > 1) canvasScale = 1;
+
+            canvas.setWidth(targetW * canvasScale); canvas.setHeight(targetH * canvasScale);
+
+            const minScale = Math.min(canvas.width / sourceW, canvas.height / sourceH);
+            if (fabricObj) { fabricObj.set({ scaleX: minScale, scaleY: minScale, left: canvas.width / 2, top: canvas.height / 2 }); }
+            canvas.renderAll();
+        }
+
+        // --- MULTI-TOUCH PINCH GESTURES ---
+        let isPinching = false, initialDist = 0, initialAngle = 0, initialScale = 1, initialRot = 0;
+        const touchSurface = canvas.upperCanvasEl;
+
+        touchSurface.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 2 && canvas.getActiveObject()) {
+                isPinching = true; e.preventDefault();
+                const activeObj = canvas.getActiveObject();
+                activeObj.set({ originX: 'center', originY: 'center' });
+                initialDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+                initialAngle = Math.atan2(e.touches[1].clientY - e.touches[0].clientY, e.touches[1].clientX - e.touches[0].clientX);
+                initialScale = activeObj.scaleX || 1; initialRot = activeObj.angle || 0;
+            }
+        }, { passive: false });
+
+        touchSurface.addEventListener('touchmove', function (e) {
+            if (isPinching && e.touches.length === 2) {
+                e.preventDefault();
+                const activeObj = canvas.getActiveObject();
+                const currDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+                const currAngle = Math.atan2(e.touches[1].clientY - e.touches[0].clientY, e.touches[1].clientX - e.touches[0].clientX);
+                activeObj.set({ scaleX: initialScale * (currDist / initialDist), scaleY: initialScale * (currDist / initialDist), angle: initialRot + (currAngle - initialAngle) * (180 / Math.PI) });
+                canvas.renderAll();
+            }
+        }, { passive: false });
+
+        touchSurface.addEventListener('touchend', function (e) {
+            if (isPinching && e.touches.length < 2) { isPinching = false; if (currentMode === 'image') saveHistory(); }
+        });
+
+        // --- HISTORY ---
+        function saveHistory() {
+            if (isHistoryProcessing || currentMode === 'video') return;
+            if (historyIndex < canvasHistory.length - 1) canvasHistory = canvasHistory.slice(0, historyIndex + 1);
+            canvasHistory.push(JSON.stringify(canvas.toJSON(['backgroundColor'])));
+            historyIndex++; updateHistoryUI();
+        }
+
+        function updateHistoryUI() {
+            const undoBtn = document.getElementById('undoBtn');
+            undoBtn.style.opacity = historyIndex > 0 ? '1' : '0.3'; undoBtn.style.pointerEvents = historyIndex > 0 ? 'auto' : 'none';
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', function () {
+            if (historyIndex > 0) {
+                isHistoryProcessing = true; historyIndex--;
+                canvas.loadFromJSON(canvasHistory[historyIndex], function () { canvas.renderAll(); isHistoryProcessing = false; updateHistoryUI(); });
+            }
+        });
+
+        canvas.on('object:added', saveHistory); canvas.on('object:modified', saveHistory); canvas.on('object:removed', saveHistory);
+
+        // --- VIDEO CONTROLS ---
+        document.getElementById('playPauseBtn').addEventListener('click', function () {
+            if (videoElement.paused) {
+                videoElement.play(); isVideoRendering = true; renderVideoLoop(); this.innerHTML = '<i class="ph ph-pause"></i>';
+            } else {
+                videoElement.pause(); isVideoRendering = false; this.innerHTML = '<i class="ph ph-play"></i>';
+            }
+        });
+
+        // --- TOOLS & POPOVERS ---
+        function closeAllPopovers() { document.querySelectorAll('.popover').forEach(p => p.classList.remove('visible')); }
+        document.getElementById('colorBtn').addEventListener('click', () => { closeAllPopovers(); document.getElementById('colorSwatches').classList.add('visible'); });
+        document.getElementById('fontBtn').addEventListener('click', () => { closeAllPopovers(); document.getElementById('fontSwatches').classList.add('visible'); });
+        document.getElementById('formatBtn').addEventListener('click', () => { closeAllPopovers(); document.getElementById('formatSwatches').classList.add('visible'); });
+        document.getElementById('ratioBtn').addEventListener('click', () => { closeAllPopovers(); document.getElementById('ratioSwatches').classList.add('visible'); });
+        canvas.on('mouse:down', closeAllPopovers);
+
+        document.getElementById('addTextBtn').addEventListener('click', function () {
+            canvas.isDrawingMode = false; document.getElementById('drawBtn').classList.remove('active');
+            const text = new fabric.IText('TAP TO EDIT', { left: canvas.width / 2, top: canvas.height / 2, fontFamily: 'Impact', fill: currentColor, stroke: '#000000', strokeWidth: 2, fontSize: Math.max(40, canvas.width / 10), originX: 'center', originY: 'center', textAlign: 'center', charSpacing: 0 });
+            canvas.add(text); canvas.setActiveObject(text); text.enterEditing(); text.selectAll();
+        });
+
+        document.querySelectorAll('.font-btn').forEach(btn => { btn.addEventListener('click', function () { const font = this.getAttribute('data-font'); const activeObj = canvas.getActiveObject(); if (activeObj && activeObj.type === 'i-text') { activeObj.set({ fontFamily: font, strokeWidth: font === 'Impact' ? 2 : 0 }); canvas.renderAll(); if (currentMode === 'image') saveHistory(); } }); });
+        document.querySelectorAll('.align-btn').forEach(btn => { btn.addEventListener('click', function () { const activeObj = canvas.getActiveObject(); if (activeObj && activeObj.type === 'i-text') { activeObj.set({ textAlign: this.getAttribute('data-align') }); canvas.renderAll(); if (currentMode === 'image') saveHistory(); } }); });
+        document.querySelectorAll('.ratio-btn').forEach(btn => { btn.addEventListener('click', function () { setAspectRatio(this.getAttribute('data-ratio'), originalMediaObj.width || originalMediaObj.videoWidth, originalMediaObj.height || originalMediaObj.videoHeight, 1, canvas.item(0)); if (currentMode === 'image') saveHistory(); }); });
+
+        // Advanced Text Formatting
+        document.getElementById('letterSpacingSlider').addEventListener('input', function (e) {
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && activeObj.type === 'i-text') {
+                activeObj.set('charSpacing', parseInt(e.target.value, 10));
+                canvas.renderAll();
+            }
+        });
+        document.getElementById('letterSpacingSlider').addEventListener('change', function () { if (currentMode === 'image') saveHistory(); });
+
+        document.querySelectorAll('.case-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const activeObj = canvas.getActiveObject();
+                if (activeObj && activeObj.type === 'i-text') {
+                    const format = this.getAttribute('data-case');
+                    let currentText = activeObj.text;
+                    if (format === 'upper') activeObj.set('text', currentText.toUpperCase());
+                    else if (format === 'lower') activeObj.set('text', currentText.toLowerCase());
+                    else if (format === 'title') {
+                        activeObj.set('text', currentText.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); }));
+                    }
+                    canvas.renderAll();
+                    if (currentMode === 'image') saveHistory();
+                }
+            });
+        });
+
+        document.getElementById('drawBtn').addEventListener('click', function () { canvas.isDrawingMode = !canvas.isDrawingMode; this.classList.toggle('active', canvas.isDrawingMode); canvas.freeDrawingBrush.color = currentColor; canvas.freeDrawingBrush.width = 8; closeAllPopovers(); });
+
+        function applyColor(newColor) {
+            currentColor = newColor; if (canvas.isDrawingMode) canvas.freeDrawingBrush.color = currentColor;
+            const obj = canvas.getActiveObject();
+            if (obj && obj.type === 'i-text') {
+                const strokeColor = (currentColor === '#000000') ? '#ffffff' : '#000000'; const sWidth = obj.fontFamily === 'Impact' ? 2 : 0;
+                if (obj.isEditing && obj.selectionStart !== obj.selectionEnd) { obj.setSelectionStyles({ fill: currentColor, stroke: strokeColor, strokeWidth: sWidth }); }
+                else { obj.set({ fill: currentColor, stroke: strokeColor, strokeWidth: sWidth }); obj.cleanStyle('fill'); obj.cleanStyle('stroke'); obj.cleanStyle('strokeWidth'); }
+                canvas.renderAll();
+            } else if (obj && obj.type === 'path') { obj.set({ stroke: currentColor }); canvas.renderAll(); }
+            else if (!obj && !canvas.isDrawingMode) { canvas.backgroundColor = currentColor; canvas.renderAll(); }
+        }
+
+        document.querySelectorAll('.swatch[data-color]').forEach(s => { s.addEventListener('click', function () { applyColor(this.getAttribute('data-color')); if (currentMode === 'image') saveHistory(); }); });
+        document.getElementById('customColorPicker').addEventListener('input', function (e) { applyColor(e.target.value); });
+        document.getElementById('customColorPicker').addEventListener('change', function (e) { if (currentMode === 'image') saveHistory(); });
+
+        document.getElementById('deleteBtn').addEventListener('click', () => { const objs = canvas.getActiveObjects(); if (objs.length) { objs.forEach(obj => canvas.remove(obj)); canvas.discardActiveObject(); } });
+        window.addEventListener('keydown', function (e) {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (canvas.getActiveObject() && canvas.getActiveObject().isEditing) return;
+                const objs = canvas.getActiveObjects(); if (objs.length) { objs.forEach(obj => canvas.remove(obj)); canvas.discardActiveObject(); }
+            }
+        });
+
+        // --- UNIFIED EXPORT LOGIC ---
+        document.getElementById('downloadBtn').addEventListener('click', function () {
+            canvas.discardActiveObject(); canvas.isDrawingMode = false; document.getElementById('drawBtn').classList.remove('active'); canvas.renderAll();
+
+            if (currentMode === 'image') {
+                const link = document.createElement('a'); link.download = 'meme-studio.png';
+                link.href = canvas.toDataURL({ format: 'png', multiplier: 2 }); link.click();
+            } else {
+                const recordBtn = this; const indicator = document.getElementById('recordingIndicator');
+                videoElement.currentTime = 0; videoElement.play(); isVideoRendering = true; renderVideoLoop();
+
+                recordBtn.classList.add('recording'); recordBtn.innerHTML = 'Recording...'; indicator.classList.add('visible');
+                recordedChunks = [];
+
+                const stream = canvas.getElement().captureStream(30);
+                let combinedStream = stream;
+                try { if (videoElement.captureStream) { const audioStream = videoElement.captureStream(); if (audioStream.getAudioTracks().length > 0) combinedStream = new MediaStream([...stream.getVideoTracks(), ...audioStream.getAudioTracks()]); } } catch (e) { }
+
+                mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = function () {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'meme-video.webm';
+                    document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url);
+                    recordBtn.classList.remove('recording'); recordBtn.innerHTML = 'Export <i class="ph ph-record"></i>'; indicator.classList.remove('visible');
+                };
+
+                mediaRecorder.start();
+                videoElement.onended = function () { mediaRecorder.stop(); videoElement.pause(); isVideoRendering = false; document.getElementById('playPauseBtn').innerHTML = '<i class="ph ph-play"></i>'; };
+            }
+        });
+    </script>
+</body>
+
+</html>
